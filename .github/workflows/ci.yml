@@ -1,0 +1,211 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  CI_PARAMS: -DCMAKE_BUILD_TYPE=Release
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    # container:
+    #   image: centos:7
+    strategy:
+      fail-fast: false
+      matrix:
+        ARCH: [x64]
+        include:
+          - ARCH: x64
+    env:
+      CI_ARCH: ${{matrix.ARCH}}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+      - name: Configure build
+        run: |
+          cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
+      - name: Build
+        run: |
+          cmake --build build --parallel
+          strip build/libtinyfd.so
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{matrix.ARCH}}
+          path: build/libtinyfd.so
+          if-no-files-found: error
+
+  linux-cross:
+    name: Linux Cross
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ARCH: [arm32, arm64, ppc64le, riscv64]
+        include:
+          # ----
+          - ARCH: arm32
+            CROSS_ARCH: armhf
+            TRIPLET: arm-linux-gnueabihf
+          # ----
+          - ARCH: arm64
+            CROSS_ARCH: arm64
+            TRIPLET: aarch64-linux-gnu
+          # ----
+          - ARCH: ppc64le
+            CROSS_ARCH: ppc64el
+            TRIPLET: powerpc64le-linux-gnu
+          # ----
+          - ARCH: riscv64
+            CROSS_ARCH: riscv64
+            TRIPLET: riscv64-linux-gnu
+    env:
+      CI_ARCH: ${{matrix.ARCH}}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install build dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive sudo apt-get -yq update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install cmake gcc-${{matrix.TRIPLET}} libc6-dev-${{matrix.CROSS_ARCH}}-cross
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 4
+      - name: Prepare cross-compilation for ${{matrix.CROSS_ARCH}}
+        run: |
+          cat <<EOF > deb822sources
+          Types: deb
+          URIs: http://archive.ubuntu.com/ubuntu/
+          Suites: noble noble-updates noble-security noble-backports
+          Components: main restricted multiverse universe
+          Architectures: amd64
+
+          Types: deb
+          URIs: http://security.ubuntu.com/ubuntu/
+          Suites: noble-security
+          Components: main restricted universe
+          Architectures: amd64
+
+          Types: deb
+          URIs: http://azure.ports.ubuntu.com/ubuntu-ports/
+          Suites: noble noble-updates noble-security noble-backports
+          Components: main restricted multiverse universe
+          Architectures: ${{matrix.CROSS_ARCH}}
+          EOF
+
+          sudo mv deb822sources /etc/apt/sources.list.d/ubuntu.sources
+
+          sudo dpkg --add-architecture ${{matrix.CROSS_ARCH}}
+          sudo apt-get update || true
+      # - name: Install dependencies
+        # run: DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install libxrandr-dev:${{matrix.CROSS_ARCH}} libxinerama-dev:${{matrix.CROSS_ARCH}} libxcursor-dev:${{matrix.CROSS_ARCH}} libxi-dev:${{matrix.CROSS_ARCH}} libxext-dev:${{matrix.CROSS_ARCH}} libxkbcommon-dev:${{matrix.CROSS_ARCH}} libwayland-dev:${{matrix.CROSS_ARCH}}
+      - name: Configure build
+        run: PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${CMAKE_SYSROOT}/usr/lib/${{matrix.TRIPLET}}/pkgconfig CC=${{matrix.TRIPLET}}-gcc cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
+      - name: Build
+        run: |
+          cmake --build build --parallel
+          ${{matrix.TRIPLET}}-strip build/libtinyfd.so
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{matrix.ARCH}}
+          path: build/libtinyfd.so
+          if-no-files-found: error
+
+  freebsd-cross:
+    name: FreeBSD Cross
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+      - name: Build
+        uses: cross-platform-actions/action@v0.29.0
+        with:
+          operating_system: freebsd
+          architecture: x86-64
+          version: '14.3'
+          memory: 4G
+          shell: bash
+          environment_variables: CI_PARAMS
+          run: |
+            sudo pkg install -y cmake gmake pkgconf
+            cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
+            cmake --build build --parallel
+            strip build/libtinyfd.so
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: freebsd-x64
+          path: build/libtinyfd.so
+          if-no-files-found: error
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        ARCH: [x64, arm64]
+        include:
+          - ARCH: x64
+            CMAKE_PARAMS: -DCMAKE_OSX_DEPLOYMENT_TARGET=10.11 -DCMAKE_OSX_ARCHITECTURES=x86_64
+          - ARCH: arm64
+            CMAKE_PARAMS: -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=arm64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+      - name: Configure build
+        run: cmake -B build $CI_PARAMS ${{matrix.CMAKE_PARAMS}}
+      - name: Build
+        run: |
+          cmake --build build --parallel
+          strip -u -r build/libtinyfd.dylib
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{matrix.ARCH}}
+          path: build/libtinyfd.dylib
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        ARCH: [x64, arm64]
+        include:
+          - ARCH: x64
+            PLATFORM: x64
+          - ARCH: arm64
+            PLATFORM: ARM64
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+      - name: Configure build
+        run: cmake -B build -G "Visual Studio 17 2022" -A ${{matrix.PLATFORM}} %CI_PARAMS% -DUSE_MSVC_RUNTIME_LIBRARY_DLL=OFF
+      - name: Build
+        run: cmake --build build --parallel --config Release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{matrix.ARCH}}
+          path: build\Release\tinyfd.dll
+          if-no-files-found: error
