@@ -22,6 +22,7 @@ jobs:
         ARCH: [x64]
         include:
           - ARCH: x64
+            PACKAGES: kdialog
     env:
       CI_ARCH: ${{matrix.ARCH}}
     defaults:
@@ -31,6 +32,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 3
+      - name: Install dependencies
+        run: |
+          echo "set man-db/auto-update false" | sudo debconf-communicate; sudo dpkg-reconfigure man-db
+          sudo apt-get update
+          sudo apt-get install build-essential cmake
+      - name: Install tinyfd dependencies
+        run: sudo apt-get install -qq ${{matrix.PACKAGES}}
       - name: Configure build
         run: |
           cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
@@ -108,8 +116,8 @@ jobs:
 
           sudo dpkg --add-architecture ${{matrix.CROSS_ARCH}}
           sudo apt-get update || true
-      # - name: Install dependencies
-        # run: DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install libxrandr-dev:${{matrix.CROSS_ARCH}} libxinerama-dev:${{matrix.CROSS_ARCH}} libxcursor-dev:${{matrix.CROSS_ARCH}} libxi-dev:${{matrix.CROSS_ARCH}} libxext-dev:${{matrix.CROSS_ARCH}} libxkbcommon-dev:${{matrix.CROSS_ARCH}} libwayland-dev:${{matrix.CROSS_ARCH}}
+      - name: Install dependencies
+        run: DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install kdialog:${{matrix.CROSS_ARCH}}
       - name: Configure build
         run: PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${CMAKE_SYSROOT}/usr/lib/${{matrix.TRIPLET}}/pkgconfig CC=${{matrix.TRIPLET}}-gcc cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
       - name: Build
@@ -142,7 +150,7 @@ jobs:
           shell: bash
           environment_variables: CI_PARAMS
           run: |
-            sudo pkg install -y cmake gmake pkgconf
+            sudo pkg install -y cmake gmake pkgconf kdialog
             cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
             cmake --build build --parallel
             strip build/lib/libtinyfd.so
