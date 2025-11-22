@@ -37,12 +37,12 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
-          strip lib/libtinyfd.so
+          strip build/lib/libtinyfd.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{matrix.ARCH}}
-          path: lib/libtinyfd.so
+          path: build/lib/libtinyfd.so
           if-no-files-found: error
 
   linux-cross:
@@ -115,12 +115,12 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
-          ${{matrix.TRIPLET}}-strip lib/libtinyfd.so
+          ${{matrix.TRIPLET}}-strip build/lib/libtinyfd.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{matrix.ARCH}}
-          path: lib/libtinyfd.so
+          path: build/lib/libtinyfd.so
           if-no-files-found: error
 
   freebsd-cross:
@@ -145,12 +145,12 @@ jobs:
             sudo pkg install -y cmake gmake pkgconf
             cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
             cmake --build build --parallel
-            strip lib/libtinyfd.so
+            strip build/lib/libtinyfd.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: freebsd-x64
-          path: lib/libtinyfd.so
+          path: build/lib/libtinyfd.so
           if-no-files-found: error
 
   macos:
@@ -173,12 +173,12 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
-          strip -u -r lib/libtinyfd.dylib
+          strip -u -r build/lib/libtinyfd.dylib
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{matrix.ARCH}}
-          path: lib/libtinyfd.dylib
+          path: build/lib/libtinyfd.dylib
           if-no-files-found: error
 
   windows:
