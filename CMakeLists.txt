@@ -64,73 +64,77 @@ endforeach()
 
 add_library(tinyfd ${TINYFD_SOURCES})
 
-    target_include_directories(tinyfd PUBLIC
-        $<BUILD_INTERFACE:${TINYFD_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:include>
-    )
+target_include_directories(tinyfd PUBLIC
+    $<BUILD_INTERFACE:${TINYFD_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:include>
+)
 
-    if(TINYFD_ENABLE_WARNINGS)
-        if(MSVC)
-            target_compile_options(tinyfd PRIVATE /W4 /permissive-)
-        else()
-            target_compile_options(tinyfd PRIVATE -Wall -Wextra -Wpedantic)
-        endif()
+if(WIN32)
+    target_link_libraries(tinyfd PRIVATE comdlg32 ole32)
+endif()
+
+if(TINYFD_ENABLE_WARNINGS)
+    if(MSVC)
+        target_compile_options(tinyfd PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(tinyfd PRIVATE -Wall -Wextra -Wpedantic)
     endif()
+endif()
 
-    # Enable optimizations when requested and only for Release-like configurations.
-    # This supports both single-config generators (checks CMAKE_BUILD_TYPE) and
-    # multi-config generators via generator expressions ($<CONFIG:...>).
-    if(TINYFD_ENABLE_OPTIMIZATIONS)
-        # Helper generator expressions for config-aware flags
-        if(MSVC)
-            # Apply /O2 for Release and RelWithDebInfo
-            target_compile_options(tinyfd PRIVATE
-                $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:/O2>
-            )
-            # For single-config generators, also respect CMAKE_BUILD_TYPE variable
-            if(NOT CMAKE_CONFIGURATION_TYPES)
-                if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-                    string(APPEND CMAKE_C_FLAGS " /O2")
-                endif()
-            endif()
-        else()
-            # Apply -O3 (and optionally -flto) for Release and RelWithDebInfo
-            target_compile_options(tinyfd PRIVATE
-                $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-O3>
-            )
-
-            # Check for -flto support and add it in a config-aware manner
-            include(CheckCCompilerFlag)
-            check_c_compiler_flag("-flto" COMPILER_SUPPORTS_FLTO)
-            if(COMPILER_SUPPORTS_FLTO)
-                target_compile_options(tinyfd PRIVATE
-                    $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-flto>
-                )
-            endif()
-
-            # Single-config fallback: if using a single-config generator and the
-            # build type is a release-like type, append flags to CMAKE_C_FLAGS
-            if(NOT CMAKE_CONFIGURATION_TYPES)
-                if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-                    string(APPEND CMAKE_C_FLAGS " -O3")
-                    if(COMPILER_SUPPORTS_FLTO)
-                        string(APPEND CMAKE_C_FLAGS " -flto")
-                    endif()
-                endif()
+# Enable optimizations when requested and only for Release-like configurations.
+# This supports both single-config generators (checks CMAKE_BUILD_TYPE) and
+# multi-config generators via generator expressions ($<CONFIG:...>).
+if(TINYFD_ENABLE_OPTIMIZATIONS)
+    # Helper generator expressions for config-aware flags
+    if(MSVC)
+        # Apply /O2 for Release and RelWithDebInfo
+        target_compile_options(tinyfd PRIVATE
+            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:/O2>
+        )
+        # For single-config generators, also respect CMAKE_BUILD_TYPE variable
+        if(NOT CMAKE_CONFIGURATION_TYPES)
+            if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+                string(APPEND CMAKE_C_FLAGS " /O2")
             endif()
         endif()
-    endif()
+    else()
+        # Apply -O3 (and optionally -flto) for Release and RelWithDebInfo
+        target_compile_options(tinyfd PRIVATE
+            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-O3>
+        )
 
-    if(TINYFD_INSTALL)
-        install(TARGETS tinyfd
-            EXPORT tinyfdTargets
-            ARCHIVE DESTINATION lib
-            LIBRARY DESTINATION lib
-            RUNTIME DESTINATION bin)
-        # Install headers from the configured include directory
-        install(DIRECTORY "${TINYFD_INCLUDE_DIR}/" DESTINATION include)
-        install(EXPORT tinyfdTargets FILE tinyfdTargets.cmake NAMESPACE tinyfd:: DESTINATION lib/cmake/tinyfd)
+        # Check for -flto support and add it in a config-aware manner
+        include(CheckCCompilerFlag)
+        check_c_compiler_flag("-flto" COMPILER_SUPPORTS_FLTO)
+        if(COMPILER_SUPPORTS_FLTO)
+            target_compile_options(tinyfd PRIVATE
+                $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-flto>
+            )
+        endif()
+
+        # Single-config fallback: if using a single-config generator and the
+        # build type is a release-like type, append flags to CMAKE_C_FLAGS
+        if(NOT CMAKE_CONFIGURATION_TYPES)
+            if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+                string(APPEND CMAKE_C_FLAGS " -O3")
+                if(COMPILER_SUPPORTS_FLTO)
+                    string(APPEND CMAKE_C_FLAGS " -flto")
+                endif()
+            endif()
+        endif()
     endif()
+endif()
+
+if(TINYFD_INSTALL)
+    install(TARGETS tinyfd
+        EXPORT tinyfdTargets
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin)
+    # Install headers from the configured include directory
+    install(DIRECTORY "${TINYFD_INCLUDE_DIR}/" DESTINATION include)
+    install(EXPORT tinyfdTargets FILE tinyfdTargets.cmake NAMESPACE tinyfd:: DESTINATION lib/cmake/tinyfd)
+endif()
 
 # Optional subdirectories
 if(TINYFD_BUILD_EXAMPLES)
