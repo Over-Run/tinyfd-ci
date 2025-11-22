@@ -21,3 +21,8 @@ cmake-build-*
 build/
 .idea/
 .vscode/
+# distribution files
+*.dll
+*.so
+*.dylib
+*.zip
