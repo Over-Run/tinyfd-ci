@@ -37,12 +37,12 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
-          strip build/libtinyfd.so
+          strip lib/libtinyfd.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{matrix.ARCH}}
-          path: build/libtinyfd.so
+          path: lib/libtinyfd.so
           if-no-files-found: error
 
   linux-cross:
@@ -115,12 +115,12 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
-          ${{matrix.TRIPLET}}-strip build/libtinyfd.so
+          ${{matrix.TRIPLET}}-strip lib/libtinyfd.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{matrix.ARCH}}
-          path: build/libtinyfd.so
+          path: lib/libtinyfd.so
           if-no-files-found: error
 
   freebsd-cross:
@@ -145,12 +145,12 @@ jobs:
             sudo pkg install -y cmake gmake pkgconf
             cmake -B build $CI_PARAMS -DCMAKE_C_FLAGS="-std=c99 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
             cmake --build build --parallel
-            strip build/libtinyfd.so
+            strip lib/libtinyfd.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: freebsd-x64
-          path: build/libtinyfd.so
+          path: lib/libtinyfd.so
           if-no-files-found: error
 
   macos:
@@ -173,12 +173,12 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
-          strip -u -r build/libtinyfd.dylib
+          strip -u -r lib/libtinyfd.dylib
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{matrix.ARCH}}
-          path: build/libtinyfd.dylib
+          path: lib/libtinyfd.dylib
           if-no-files-found: error
 
   windows:
@@ -207,5 +207,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{matrix.ARCH}}
-          path: build\Release\tinyfd.dll
+          path: build\bin\Release\tinyfd.dll
           if-no-files-found: error
